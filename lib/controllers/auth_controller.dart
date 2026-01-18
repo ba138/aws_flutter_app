@@ -33,7 +33,11 @@ class AuthController extends GetxController {
   /// =========================
   /// SIGN UP (REGISTER)
   /// =========================
-  Future<void> signUp({required String email, required String password}) async {
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String name,
+  }) async {
     try {
       isLoading.value = true;
 
@@ -41,18 +45,17 @@ class AuthController extends GetxController {
         username: email.trim(),
         password: password.trim(),
         options: SignUpOptions(
-          userAttributes: {AuthUserAttributeKey.email: email.trim()},
+          userAttributes: {
+            AuthUserAttributeKey.email: email.trim(),
+            AuthUserAttributeKey.name: name.trim(),
+          },
         ),
       );
 
       _emailForVerification = email.trim();
 
       if (!result.isSignUpComplete) {
-        Get.snackbar(
-          'Verification Required',
-          'Please check your email for the verification code',
-        );
-        Get.to(() => VerifyEmailScreen());
+        Get.toNamed('/verify');
       }
     } on AuthException catch (e) {
       Get.snackbar('Sign Up Failed', e.message);
