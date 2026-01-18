@@ -164,7 +164,7 @@ class AuthController extends GetxController {
     try {
       await Amplify.Auth.signOut();
       isLoggedIn.value = false;
-      Get.offAllNamed('/login');
+      Get.offAll(() => const LoginScreen());
     } catch (e) {
       Get.snackbar('Error', 'Failed to logout');
     }

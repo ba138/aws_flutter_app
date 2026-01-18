@@ -37,6 +37,10 @@ dependencies:
   amplify_flutter: ^2.9.0
   amplify_auth_cognito: ^2.9.0
   get: ^4.7.3
+  amplify_storage_s3: ^2.9.0
+  amplify_api: ^2.9.0
+  image_picker: ^1.2.1
+  uuid: ^4.5.2
 
 dev_dependencies:
   flutter_test:
