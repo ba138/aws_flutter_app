@@ -1,0 +1,13 @@
+type Product
+  @model
+  @auth(rules: [
+    { allow: owner, ownerField: "owner", operations: [create, update, delete, read] }
+  ]) {
+  id: ID!
+  owner: String
+  name: String!
+  description: String!
+  price: Float!
+  imageUrl: String!
+  createdAt: AWSDateTime
+}

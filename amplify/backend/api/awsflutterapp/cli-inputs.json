@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "serviceConfiguration": {
+    "apiName": "awsflutterapp",
+    "serviceName": "AppSync",
+    "defaultAuthType": {
+      "mode": "AMAZON_COGNITO_USER_POOLS",
+      "cognitoUserPoolId": "authawsflutterapp9bed106b"
+    },
+    "conflictResolution": {},
+    "additionalAuthTypes": []
+  }
+}
