@@ -22,6 +22,7 @@ class AuthController extends GetxController {
 
       if (session.isSignedIn) {
         Get.offAll(() => const HomeScreen());
+        // Get.offAll(() => const LoginScreen());
       } else {
         Get.offAll(() => const LoginScreen());
       }
@@ -55,7 +56,7 @@ class AuthController extends GetxController {
       _emailForVerification = email.trim();
 
       if (!result.isSignUpComplete) {
-        Get.toNamed('/verify');
+        Get.to(() => const VerifyEmailScreen());
       }
     } on AuthException catch (e) {
       Get.snackbar('Sign Up Failed', e.message);
