@@ -1,7 +1,7 @@
+import 'package:aws_flutter_app/Screens/product_upload_screen.dart';
 import 'package:aws_flutter_app/controllers/auth_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_connect/http/src/utils/utils.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,7 +16,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Get.to(() => ProductUploadScreen());
+        },
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -24,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
 
         children: [
-          FloatingActionButton(
+          ElevatedButton(
             onPressed: () {
               authController.signOut();
             },
