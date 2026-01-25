@@ -12,60 +12,114 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  var authController = Get.put(AuthController());
+  final AuthController authController = Get.put(AuthController());
   final ProductListController controller = Get.put(ProductListController());
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: const Text('Products'), centerTitle: true),
+
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Get.to(() => ProductUploadScreen());
         },
         child: const Icon(Icons.add),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
 
-        children: [
-          // ElevatedButton(
-          //   onPressed: () {
-          //     authController.signOut();
-          //   },
-          //   child: const Icon(Icons.logout),
-          // ),
-          Obx(() {
-            if (controller.isLoading.value) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-            if (controller.products.isEmpty) {
-              return const Center(child: Text("No products found"));
-            }
+        if (controller.products.isEmpty) {
+          return const Center(child: Text("No products found"));
+        }
 
-            return ListView.builder(
-              itemCount: controller.products.length,
-              itemBuilder: (context, index) {
-                final product = controller.products[index];
+        return ListView.builder(
+          itemCount: controller.products.length,
+          itemBuilder: (context, index) {
+            final product = controller.products[index];
 
-                return Card(
-                  child: ListTile(
-                    leading: Image.network(
-                      product.imageUrl,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    /// ✅ IMAGE (Amplify-safe)
+                    FutureBuilder<String?>(
+                      future: controller.getImageUrl(product.imagePath),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+
+                        if (!snapshot.hasData || snapshot.data == null) {
+                          return const SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: Icon(Icons.broken_image),
+                          );
+                        }
+
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            snapshot.data!,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.broken_image),
+                          ),
+                        );
+                      },
                     ),
-                    title: Text(product.name),
-                    subtitle: Text(product.description),
-                    trailing: Text("\$${product.price}"),
-                  ),
-                );
-              },
+
+                    const SizedBox(width: 12),
+
+                    /// ✅ PRODUCT INFO
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            product.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "\$${product.price}",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
-          }),
-        ],
-      ),
+          },
+        );
+      }),
     );
   }
 }

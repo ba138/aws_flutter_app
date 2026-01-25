@@ -10,15 +10,18 @@ class ProductController extends GetxController {
   Rx<File?> imageFile = Rx<File?>(null);
   RxBool isLoading = false.obs;
 
+  /// Pick image
   Future<void> pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
     );
+
     if (pickedFile != null) {
       imageFile.value = File(pickedFile.path);
     }
   }
 
+  /// Upload product
   Future<void> uploadProduct({
     required String name,
     required String description,
@@ -34,23 +37,21 @@ class ProductController extends GetxController {
     try {
       final productId = const Uuid().v4();
 
-      /// ✅ MUST be public/
-      final storagePath = StoragePath.fromString(
-        'public/products/$productId.jpg',
-      );
+      /// ✅ PUBLIC PATH (PERMANENT)
+      final imagePath = 'public/products/$productId.jpg';
+      final storagePath = StoragePath.fromString(imagePath);
 
-      final uploadResult = await Amplify.Storage.uploadFile(
+      /// ✅ Upload image
+      await Amplify.Storage.uploadFile(
         localFile: AWSFile.fromPath(imageFile.value!.path),
         path: storagePath,
-        onProgress: (p) =>
-            safePrint('Upload progress: ${p.fractionCompleted * 100}%'),
+        onProgress: (p) => safePrint(
+          'Upload progress: ${(p.fractionCompleted * 100).toInt()}%',
+        ),
       ).result;
 
-      final urlResult = await Amplify.Storage.getUrl(
-        path: StoragePath.fromString(uploadResult.uploadedItem.path),
-      ).result;
-
-      final imageUrl = urlResult.url.toString();
+      /// ❌ DO NOT call getUrl() here
+      /// ✅ Store only imagePath in DB
 
       final mutation =
           '''
@@ -60,7 +61,7 @@ class ProductController extends GetxController {
           name: "$name"
           description: "$description"
           price: $price
-          imageUrl: "$imageUrl"
+          imagePath: "$imagePath"
         }) {
           id
         }

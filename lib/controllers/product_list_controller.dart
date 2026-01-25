@@ -24,7 +24,8 @@ class ProductListController extends GetxController {
           name
           description
           price
-          imageUrl
+          imagePath
+          owner
           createdAt
         }
       }
@@ -44,7 +45,10 @@ class ProductListController extends GetxController {
       final data = jsonDecode(response.data!);
       final items = data['listProducts']['items'] as List;
 
-      products.value = items.map((e) => ProductModel.fromJson(e)).toList();
+      products.value = items
+          .where((e) => e != null)
+          .map((e) => ProductModel.fromJson(e))
+          .toList();
     } catch (e) {
       safePrint('Fetch error: $e');
     } finally {
@@ -52,8 +56,20 @@ class ProductListController extends GetxController {
     }
   }
 
-  /// Optional: refresh like Firestore pull-to-refresh
   Future<void> refreshProducts() async {
     await fetchProducts();
+  }
+
+  Future<String?> getImageUrl(String path) async {
+    try {
+      final result = await Amplify.Storage.getUrl(
+        path: StoragePath.fromString(path),
+      ).result;
+
+      return result.url.toString();
+    } catch (e) {
+      safePrint('Get URL error: $e');
+      return null;
+    }
   }
 }
