@@ -28,4 +28,16 @@ class ProductModel {
       'createdAt': createdAt.toIso8601String(),
     };
   }
+
+  factory ProductModel.fromJson(Map<String, dynamic> json) {
+    return ProductModel(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      price: (json['price'] as num).toDouble(),
+      imageUrl: json['imageUrl'],
+      createdAt: json['createdAt'],
+      owner: '',
+    );
+  }
 }
