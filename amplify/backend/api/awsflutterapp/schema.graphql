@@ -1,13 +1,24 @@
 type Product
-  @model
-  @auth(rules: [
-    { allow: owner, ownerField: "owner", operations: [create, update, delete, read] }
-  ]) {
+@model
+@auth(rules: [
+  { allow: owner, ownerField: "owner", operations: [create, update, delete, read] }
+]) {
   id: ID!
   owner: String
   name: String!
   description: String!
   price: Float!
   imagePath: String!
+  createdAt: AWSDateTime
+}
+
+type Favorite
+@model
+@auth(rules: [
+  { allow: owner }
+]) {
+  id: ID!
+  userId: String!
+  productId: ID!
   createdAt: AWSDateTime
 }
