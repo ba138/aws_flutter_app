@@ -52,7 +52,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 } else {
                   favoriteController.addToFavorites(
                     productId: widget.productId,
-                    userId: authController.userId.value,
                   );
                 }
               },

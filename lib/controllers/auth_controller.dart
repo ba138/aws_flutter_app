@@ -1,3 +1,4 @@
+import 'package:aws_flutter_app/Screens/dashboard/dashboard_screen.dart';
 import 'package:aws_flutter_app/Screens/home_screen.dart';
 import 'package:aws_flutter_app/Screens/login_screen.dart';
 import 'package:aws_flutter_app/Screens/otp_verfication.dart';
@@ -11,30 +12,10 @@ class AuthController extends GetxController {
 
   /// Store email temporarily for verification & reset
   String _emailForVerification = '';
-  RxString userId = ''.obs;
-  void oninit() {
-    super.onInit();
-    checkAuthStatus();
-    getUserId();
-  }
 
   /// =========================
   /// GET CURRENT USER ID
   /// =========================
-  Future<String?> getUserId() async {
-    try {
-      final user = await Amplify.Auth.getCurrentUser();
-
-      /// Cognito User ID (sub)
-      userId.value = user.userId;
-
-      safePrint('Current userId: ${user.userId}');
-      return user.userId;
-    } on AuthException catch (e) {
-      safePrint('Get userId failed: ${e.message}');
-      return null;
-    }
-  }
 
   /// =========================
   /// CHECK CURRENT USER
@@ -46,7 +27,7 @@ class AuthController extends GetxController {
       isLoggedIn.value = session.isSignedIn;
 
       if (session.isSignedIn) {
-        Get.offAll(() => const HomeScreen());
+        Get.offAll(() => const DashboardScreen());
         // Get.offAll(() => const LoginScreen());
       } else {
         Get.offAll(() => const LoginScreen());
@@ -127,7 +108,7 @@ class AuthController extends GetxController {
 
       if (result.isSignedIn) {
         isLoggedIn.value = true;
-        Get.offAll(() => const HomeScreen());
+        Get.offAll(() => const DashboardScreen());
       }
     } on AuthException catch (e) {
       Get.snackbar('Login Failed', e.message);
