@@ -11,6 +11,30 @@ class AuthController extends GetxController {
 
   /// Store email temporarily for verification & reset
   String _emailForVerification = '';
+  RxString userId = ''.obs;
+  void oninit() {
+    super.onInit();
+    checkAuthStatus();
+    getUserId();
+  }
+
+  /// =========================
+  /// GET CURRENT USER ID
+  /// =========================
+  Future<String?> getUserId() async {
+    try {
+      final user = await Amplify.Auth.getCurrentUser();
+
+      /// Cognito User ID (sub)
+      userId.value = user.userId;
+
+      safePrint('Current userId: ${user.userId}');
+      return user.userId;
+    } on AuthException catch (e) {
+      safePrint('Get userId failed: ${e.message}');
+      return null;
+    }
+  }
 
   /// =========================
   /// CHECK CURRENT USER
@@ -18,6 +42,7 @@ class AuthController extends GetxController {
   Future<void> checkAuthStatus() async {
     try {
       final session = await Amplify.Auth.fetchAuthSession();
+
       isLoggedIn.value = session.isSignedIn;
 
       if (session.isSignedIn) {
