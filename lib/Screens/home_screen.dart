@@ -15,7 +15,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AuthController authController = Get.put(AuthController());
   final ProductListController controller = Get.put(ProductListController());
-  String imageUrl = "";
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     productName: product.name,
                     productDescription: product.description,
                     productPrice: product.price,
-                    imagePath: imageUrl,
+                    imagePath: product.imagePath,
                   ),
                 );
               },
@@ -86,7 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Icon(Icons.broken_image),
                             );
                           }
-                          imageUrl = snapshot.data!;
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.network(

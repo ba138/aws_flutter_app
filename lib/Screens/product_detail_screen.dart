@@ -1,3 +1,4 @@
+import 'package:aws_flutter_app/controllers/product_list_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/favorite_controller.dart';
@@ -25,6 +26,7 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final FavoriteController favoriteController = Get.put(FavoriteController());
+  final ProductListController controller = Get.put(ProductListController());
 
   final AuthController authController = Get.put(AuthController());
 
@@ -44,10 +46,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               onPressed: () {
                 if (isFav) {
-                  /// Optional: remove later using favoriteId
-                  Get.snackbar(
-                    "Already saved",
-                    "This product is already in favorites",
+                  favoriteController.removeFromFavorites(
+                    productId: widget.productId,
                   );
                 } else {
                   favoriteController.addToFavorites(
@@ -63,13 +63,38 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.network(
-              widget.imagePath,
-              width: double.infinity,
-              height: 250,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.broken_image, size: 100),
+            FutureBuilder<String?>(
+              future: controller.getImageUrl(widget.imagePath),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    width: double.infinity,
+                    height: 200,
+                    child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data == null) {
+                  return const SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: Icon(Icons.broken_image),
+                  );
+                }
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(0),
+                  child: Image.network(
+                    snapshot.data!,
+                    width: double.infinity,
+                    height: 300,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        const Icon(Icons.broken_image),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             Padding(
