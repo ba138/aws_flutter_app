@@ -1,3 +1,4 @@
+import 'package:aws_flutter_app/controllers/cart_controller.dart';
 import 'package:aws_flutter_app/controllers/product_list_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -29,6 +30,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final ProductListController controller = Get.put(ProductListController());
 
   final AuthController authController = Get.put(AuthController());
+  final cartController = Get.put(CartController());
 
   @override
   Widget build(BuildContext context) {
@@ -118,6 +120,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.add_shopping_cart),
+                    onPressed: () {
+                      cartController.addToCart(productId: widget.productId);
+                    },
                   ),
                 ],
               ),
