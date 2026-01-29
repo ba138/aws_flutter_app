@@ -1,6 +1,5 @@
 import 'package:aws_flutter_app/Screens/home_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 // Screens (create empty screens if not created yet)
 import 'favorite_screen.dart';

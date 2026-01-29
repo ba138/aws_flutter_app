@@ -1,5 +1,4 @@
 import 'package:aws_flutter_app/Screens/dashboard/dashboard_screen.dart';
-import 'package:aws_flutter_app/Screens/home_screen.dart';
 import 'package:aws_flutter_app/Screens/login_screen.dart';
 import 'package:aws_flutter_app/Screens/otp_verfication.dart';
 import 'package:get/get.dart';

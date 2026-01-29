@@ -1,3 +1,4 @@
+### 🛍️ PRODUCT
 type Product
 @model
 @auth(rules: [
@@ -12,6 +13,7 @@ type Product
   createdAt: AWSDateTime
 }
 
+### ❤️ FAVORITE
 type Favorite
 @model
 @auth(rules: [
@@ -20,5 +22,18 @@ type Favorite
   id: ID!
   userId: String!
   productId: ID!
+  createdAt: AWSDateTime
+}
+
+### 🛒 CART ITEM
+type CartItem
+@model
+@auth(rules: [
+  { allow: owner }
+]) {
+  id: ID!
+  userId: String!
+  productId: ID!
+  quantity: Int!
   createdAt: AWSDateTime
 }
