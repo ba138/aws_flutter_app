@@ -1,3 +1,4 @@
+import 'package:aws_flutter_app/Models/app_user_model.dart';
 import 'package:aws_flutter_app/Screens/dashboard/dashboard_screen.dart';
 import 'package:aws_flutter_app/Screens/login_screen.dart';
 import 'package:aws_flutter_app/Screens/otp_verfication.dart';
@@ -11,6 +12,7 @@ class AuthController extends GetxController {
 
   /// Store email temporarily for verification & reset
   String _emailForVerification = '';
+  Rx<AppUser?> currentUser = Rx<AppUser?>(null);
 
   /// =========================
   /// GET CURRENT USER ID
@@ -26,6 +28,8 @@ class AuthController extends GetxController {
       isLoggedIn.value = session.isSignedIn;
 
       if (session.isSignedIn) {
+        await loadCurrentUser();
+
         Get.offAll(() => const DashboardScreen());
         // Get.offAll(() => const LoginScreen());
       } else {
@@ -107,12 +111,31 @@ class AuthController extends GetxController {
 
       if (result.isSignedIn) {
         isLoggedIn.value = true;
+        await loadCurrentUser();
+
         Get.offAll(() => const DashboardScreen());
       }
     } on AuthException catch (e) {
       Get.snackbar('Login Failed', e.message);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> loadCurrentUser() async {
+    try {
+      final cognitoUser = await Amplify.Auth.getCurrentUser();
+      final attributes = await Amplify.Auth.fetchUserAttributes();
+
+      final Map<String, String> attrMap = {'sub': cognitoUser.userId};
+
+      for (final attr in attributes) {
+        attrMap[attr.userAttributeKey.key] = attr.value;
+      }
+
+      currentUser.value = AppUser.fromCognito(attrMap);
+    } catch (e) {
+      safePrint('Load user error: $e');
     }
   }
 
