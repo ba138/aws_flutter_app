@@ -1,3 +1,4 @@
+import 'package:aws_flutter_app/Screens/dashboard/chat_screen.dart';
 import 'package:aws_flutter_app/Screens/home_screen.dart';
 import 'package:flutter/material.dart';
 
@@ -21,6 +22,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     FavoriteScreen(),
     CartScreen(),
     ProfileScreen(),
+    ChatScreen(),
   ];
 
   @override
@@ -51,6 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icon(Icons.settings),
             label: 'Settings',
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
         ],
       ),
     );
