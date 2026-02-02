@@ -14,7 +14,6 @@ type Product
   createdAt: AWSDateTime
 }
 
-
 ### ❤️ FAVORITE
 type Favorite
 @model
@@ -27,7 +26,7 @@ type Favorite
   createdAt: AWSDateTime
 }
 
-### 🛒 CART ITEM
+### 🛒 CART
 type CartItem
 @model
 @auth(rules: [
@@ -38,4 +37,38 @@ type CartItem
   productId: ID!
   quantity: Int!
   createdAt: AWSDateTime
+}
+
+### 💬 MESSAGE
+type Message
+@model
+@auth(rules: [
+  { allow: owner, ownerField: "senderId" },
+  { allow: owner, ownerField: "receiverId", operations: [read] }
+]) {
+  id: ID!
+  conversationId: String!
+    @index(
+      name: "byConversation",
+      sortKeyFields: ["createdAt"],
+      queryField: "messagesByConversation"
+    )
+  senderId: String!
+  receiverId: String!
+  text: String!
+  createdAt: AWSDateTime!
+}
+
+### 📬 CONVERSATION (INBOX)
+type Conversation
+@model
+@auth(rules: [
+  { allow: owner, ownerField: "userA" },
+  { allow: owner, ownerField: "userB" }
+]) {
+  id: ID!
+  userA: String!
+  userB: String!
+  lastMessage: String
+  updatedAt: AWSDateTime
 }
