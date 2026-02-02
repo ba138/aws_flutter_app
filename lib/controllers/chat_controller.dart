@@ -21,7 +21,7 @@ class ChatController extends GetxController {
 
     conversationId = _conversationId(currentUserId, otherUserId);
 
-    fetchMessages();
+    await fetchMessages();
     subscribeMessages();
   }
 
@@ -33,18 +33,18 @@ class ChatController extends GetxController {
   /// 📥 FETCH MESSAGES
   Future<void> fetchMessages() async {
     const query = '''
-  query MessagesByConversation(\$cid: String!) {
-    messagesByConversation(conversationId: \$cid) {
-      items {
-        id
-        senderId
-        receiverId
-        text
-        createdAt
+    query MessagesByConversation(\$cid: String!) {
+      messagesByConversation(conversationId: \$cid) {
+        items {
+          id
+          senderId
+          receiverId
+          text
+          createdAt
+        }
       }
     }
-  }
-  ''';
+    ''';
 
     try {
       final response = await Amplify.API
@@ -56,19 +56,14 @@ class ChatController extends GetxController {
           )
           .response;
 
-      // Check if API returned null data
       if (response.data == null) {
-        print("No data returned from API");
         messages.value = [];
         return;
       }
 
       final data = jsonDecode(response.data!);
-
-      // Safely get the items list
       final items = data['messagesByConversation']?['items'] ?? [];
 
-      // Map items and ensure no nulls for String fields
       messages.value = List<Map<String, dynamic>>.from(
         items.map<Map<String, dynamic>>((item) {
           return {
@@ -81,7 +76,8 @@ class ChatController extends GetxController {
         }),
       );
 
-      print("Fetched ${messages.value.length} messages successfully.");
+      // Sort by createdAt
+      messages.sort((a, b) => a['createdAt'].compareTo(b['createdAt']));
     } catch (e) {
       print("Error fetching messages: $e");
       messages.value = [];
@@ -89,25 +85,22 @@ class ChatController extends GetxController {
   }
 
   /// 📤 SEND MESSAGE
-
   Future<void> sendMessage(String text) async {
     try {
-      // Generate a unique ID for the new message
       final messageId = Uuid().v4();
       final createdAt = DateTime.now().toIso8601String();
 
-      // GraphQL mutation with variables
       const mutation = '''
-    mutation SendMessage(\$input: CreateMessageInput!) {
-      createMessage(input: \$input) {
-        id
-        senderId
-        receiverId
-        text
-        createdAt
+      mutation SendMessage(\$input: CreateMessageInput!) {
+        createMessage(input: \$input) {
+          id
+          senderId
+          receiverId
+          text
+          createdAt
+        }
       }
-    }
-    ''';
+      ''';
 
       final variables = {
         "input": {
@@ -119,24 +112,23 @@ class ChatController extends GetxController {
         },
       };
 
-      final response = await Amplify.API
+      await Amplify.API
           .mutate(
             request: GraphQLRequest(document: mutation, variables: variables),
           )
           .response;
 
-      // Update local messages list immediately
-      messages.value = [
-        ...messages.value,
-        {
-          'id': messageId,
-          'senderId': /* your userId */
-              conversationId, // replace with your sender ID
-          'receiverId': otherUserId,
-          'text': text,
-          'createdAt': createdAt,
-        },
-      ];
+      // Add to local list
+      messages.add({
+        'id': messageId,
+        'senderId': currentUserId,
+        'receiverId': otherUserId,
+        'text': text,
+        'createdAt': createdAt,
+      });
+
+      // Keep messages sorted
+      messages.sort((a, b) => a['createdAt'].compareTo(b['createdAt']));
 
       safePrint('Message sent successfully');
     } catch (e) {
@@ -145,19 +137,19 @@ class ChatController extends GetxController {
   }
 
   /// 🔴 REALTIME SUBSCRIPTION
-
   void subscribeMessages() {
     const subscription = '''
-  subscription OnCreateMessage {
-    onCreateMessage {
-      id
-      conversationId
-      receiverId
-      text
-      createdAt
+    subscription OnCreateMessage {
+      onCreateMessage {
+        id
+        conversationId
+        senderId
+        receiverId
+        text
+        createdAt
+      }
     }
-  }
-  ''';
+    ''';
 
     _subscription = Amplify.API
         .subscribe(
@@ -170,14 +162,22 @@ class ChatController extends GetxController {
 
             final decoded = jsonDecode(event.data!);
             final msg = decoded['onCreateMessage'];
+            if (msg == null) return;
 
             if (msg['conversationId'] == conversationId) {
               messages.add(Map<String, dynamic>.from(msg));
+              messages.sort((a, b) => a['createdAt'].compareTo(b['createdAt']));
             }
           },
           onError: (error) {
             safePrint('Subscription error: $error');
           },
         );
+  }
+
+  @override
+  void onClose() {
+    _subscription?.cancel();
+    super.onClose();
   }
 }
