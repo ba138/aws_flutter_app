@@ -30,14 +30,13 @@ class ChatController extends GetxController {
     return ids.join('_');
   }
 
-  /// 📥 FETCH MESSAGES
+  /// FETCH MESSAGES
   Future<void> fetchMessages() async {
     const query = '''
     query MessagesByConversation(\$cid: String!) {
       messagesByConversation(conversationId: \$cid) {
         items {
           id
-          senderId
           receiverId
           text
           createdAt
@@ -64,11 +63,14 @@ class ChatController extends GetxController {
       final data = jsonDecode(response.data!);
       final items = data['messagesByConversation']?['items'] ?? [];
 
+      // Map items and add owner info
       messages.value = List<Map<String, dynamic>>.from(
         items.map<Map<String, dynamic>>((item) {
+          // Determine if message is from me or other user
+          final isMe = currentUserId != item['receiverId'];
           return {
             'id': item['id'] ?? '',
-            'senderId': item['senderId'] ?? '',
+            'fromMe': isMe, // true if current user sent
             'receiverId': item['receiverId'] ?? '',
             'text': item['text'] ?? '',
             'createdAt': item['createdAt'] ?? '',
@@ -76,7 +78,7 @@ class ChatController extends GetxController {
         }),
       );
 
-      // Sort by createdAt
+      // Sort messages by createdAt
       messages.sort((a, b) => a['createdAt'].compareTo(b['createdAt']));
     } catch (e) {
       print("Error fetching messages: $e");
@@ -84,7 +86,7 @@ class ChatController extends GetxController {
     }
   }
 
-  /// 📤 SEND MESSAGE
+  /// SEND MESSAGE
   Future<void> sendMessage(String text) async {
     try {
       final messageId = Uuid().v4();
@@ -94,7 +96,6 @@ class ChatController extends GetxController {
       mutation SendMessage(\$input: CreateMessageInput!) {
         createMessage(input: \$input) {
           id
-          senderId
           receiverId
           text
           createdAt
@@ -121,7 +122,7 @@ class ChatController extends GetxController {
       // Add to local list
       messages.add({
         'id': messageId,
-        'senderId': currentUserId,
+        'fromMe': true, // I sent it
         'receiverId': otherUserId,
         'text': text,
         'createdAt': createdAt,
@@ -136,14 +137,13 @@ class ChatController extends GetxController {
     }
   }
 
-  /// 🔴 REALTIME SUBSCRIPTION
+  /// REALTIME SUBSCRIPTION
   void subscribeMessages() {
     const subscription = '''
     subscription OnCreateMessage {
       onCreateMessage {
         id
         conversationId
-        senderId
         receiverId
         text
         createdAt
@@ -165,7 +165,15 @@ class ChatController extends GetxController {
             if (msg == null) return;
 
             if (msg['conversationId'] == conversationId) {
-              messages.add(Map<String, dynamic>.from(msg));
+              final isMe = currentUserId != msg['receiverId'];
+              messages.add({
+                'id': msg['id'],
+                'fromMe': isMe,
+                'receiverId': msg['receiverId'],
+                'text': msg['text'],
+                'createdAt': msg['createdAt'],
+              });
+
               messages.sort((a, b) => a['createdAt'].compareTo(b['createdAt']));
             }
           },
