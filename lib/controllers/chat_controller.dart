@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:get/get.dart' hide GraphQLResponse;
+import 'package:uuid/uuid.dart';
 
 class ChatController extends GetxController {
   RxList<Map<String, dynamic>> messages = <Map<String, dynamic>>[].obs;
@@ -32,56 +33,112 @@ class ChatController extends GetxController {
   /// 📥 FETCH MESSAGES
   Future<void> fetchMessages() async {
     const query = '''
-    query MessagesByConversation(\$cid: String!) {
-      messagesByConversation(conversationId: \$cid) {
-        items {
-          id
-          senderId
-          receiverId
-          text
-          createdAt
-        }
+  query MessagesByConversation(\$cid: String!) {
+    messagesByConversation(conversationId: \$cid) {
+      items {
+        id
+        senderId
+        receiverId
+        text
+        createdAt
       }
     }
-    ''';
+  }
+  ''';
 
-    final response = await Amplify.API
-        .query(
-          request: GraphQLRequest(
-            document: query,
-            variables: {"cid": conversationId},
-          ),
-        )
-        .response;
+    try {
+      final response = await Amplify.API
+          .query(
+            request: GraphQLRequest(
+              document: query,
+              variables: {"cid": conversationId},
+            ),
+          )
+          .response;
 
-    final data = jsonDecode(response.data!);
-    messages.value = List<Map<String, dynamic>>.from(
-      data['messagesByConversation']['items'],
-    );
+      // Check if API returned null data
+      if (response.data == null) {
+        print("No data returned from API");
+        messages.value = [];
+        return;
+      }
+
+      final data = jsonDecode(response.data!);
+
+      // Safely get the items list
+      final items = data['messagesByConversation']?['items'] ?? [];
+
+      // Map items and ensure no nulls for String fields
+      messages.value = List<Map<String, dynamic>>.from(
+        items.map<Map<String, dynamic>>((item) {
+          return {
+            'id': item['id'] ?? '',
+            'senderId': item['senderId'] ?? '',
+            'receiverId': item['receiverId'] ?? '',
+            'text': item['text'] ?? '',
+            'createdAt': item['createdAt'] ?? '',
+          };
+        }),
+      );
+
+      print("Fetched ${messages.value.length} messages successfully.");
+    } catch (e) {
+      print("Error fetching messages: $e");
+      messages.value = [];
+    }
   }
 
   /// 📤 SEND MESSAGE
+
   Future<void> sendMessage(String text) async {
     try {
-      final mutation =
-          '''
-    mutation SendMessage {
-      createMessage(input: {
-        conversationId: "$conversationId"
-        senderId: "$currentUserId"
-        receiverId: "$otherUserId"
-        text: "$text"
-        createdAt: "${DateTime.now().toIso8601String()}"
-      }) {
+      // Generate a unique ID for the new message
+      final messageId = Uuid().v4();
+      final createdAt = DateTime.now().toIso8601String();
+
+      // GraphQL mutation with variables
+      const mutation = '''
+    mutation SendMessage(\$input: CreateMessageInput!) {
+      createMessage(input: \$input) {
         id
+        senderId
+        receiverId
+        text
+        createdAt
       }
     }
     ''';
 
-      await Amplify.API
-          .mutate(request: GraphQLRequest(document: mutation))
+      final variables = {
+        "input": {
+          "id": messageId,
+          "conversationId": conversationId,
+          "receiverId": otherUserId,
+          "text": text,
+          "createdAt": createdAt,
+        },
+      };
+
+      final response = await Amplify.API
+          .mutate(
+            request: GraphQLRequest(document: mutation, variables: variables),
+          )
           .response;
-      safePrint('Send message');
+
+      // Update local messages list immediately
+      messages.value = [
+        ...messages.value,
+        {
+          'id': messageId,
+          'senderId': /* your userId */
+              conversationId, // replace with your sender ID
+          'receiverId': otherUserId,
+          'text': text,
+          'createdAt': createdAt,
+        },
+      ];
+
+      safePrint('Message sent successfully');
     } catch (e) {
       safePrint('Send message error: $e');
     }
@@ -95,7 +152,6 @@ class ChatController extends GetxController {
     onCreateMessage {
       id
       conversationId
-      senderId
       receiverId
       text
       createdAt

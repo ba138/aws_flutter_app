@@ -46,18 +46,12 @@ type Message
   { allow: private, operations: [read] }  # receiver can read
 ]) {
   id: ID!
-
-  conversationId: String!
-    @index(
-      name: "byConversation",
-      sortKeyFields: ["createdAt"],
-      queryField: "messagesByConversation"
-    )
-
+  conversationId: String! @index(name: "byConversation", sortKeyFields: ["createdAt"], queryField: "messagesByConversation")
   receiverId: String!
   text: String!
   createdAt: AWSDateTime!
 }
+
 
 
 ### 📬 CONVERSATION (INBOX)
