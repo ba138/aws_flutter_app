@@ -39,25 +39,26 @@ type CartItem
   createdAt: AWSDateTime
 }
 
-### 💬 MESSAGE
 type Message
 @model
 @auth(rules: [
-  { allow: owner, ownerField: "senderId" },
-  { allow: owner, ownerField: "receiverId", operations: [read] }
+  { allow: owner },                       # sender (auto)
+  { allow: private, operations: [read] }  # receiver can read
 ]) {
   id: ID!
+
   conversationId: String!
     @index(
       name: "byConversation",
       sortKeyFields: ["createdAt"],
       queryField: "messagesByConversation"
     )
-  senderId: String!
+
   receiverId: String!
   text: String!
   createdAt: AWSDateTime!
 }
+
 
 ### 📬 CONVERSATION (INBOX)
 type Conversation

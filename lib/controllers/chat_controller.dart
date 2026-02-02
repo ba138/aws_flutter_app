@@ -81,6 +81,7 @@ class ChatController extends GetxController {
       await Amplify.API
           .mutate(request: GraphQLRequest(document: mutation))
           .response;
+      safePrint('Send message');
     } catch (e) {
       safePrint('Send message error: $e');
     }
