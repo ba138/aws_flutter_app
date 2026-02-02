@@ -62,8 +62,9 @@ class ChatController extends GetxController {
 
   /// 📤 SEND MESSAGE
   Future<void> sendMessage(String text) async {
-    final mutation =
-        '''
+    try {
+      final mutation =
+          '''
     mutation SendMessage {
       createMessage(input: {
         conversationId: "$conversationId"
@@ -77,9 +78,12 @@ class ChatController extends GetxController {
     }
     ''';
 
-    await Amplify.API
-        .mutate(request: GraphQLRequest(document: mutation))
-        .response;
+      await Amplify.API
+          .mutate(request: GraphQLRequest(document: mutation))
+          .response;
+    } catch (e) {
+      safePrint('Send message error: $e');
+    }
   }
 
   /// 🔴 REALTIME SUBSCRIPTION

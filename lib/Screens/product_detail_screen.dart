@@ -1,3 +1,4 @@
+import 'package:aws_flutter_app/Screens/dashboard/message_screen.dart';
 import 'package:aws_flutter_app/controllers/cart_controller.dart';
 import 'package:aws_flutter_app/controllers/product_list_controller.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ class ProductDetailScreen extends StatefulWidget {
   final String productDescription;
   final double productPrice;
   final String imagePath;
+  final String ownerId;
 
   const ProductDetailScreen({
     super.key,
@@ -19,6 +21,7 @@ class ProductDetailScreen extends StatefulWidget {
     required this.productDescription,
     required this.productPrice,
     required this.imagePath,
+    required this.ownerId,
   });
 
   @override
@@ -125,6 +128,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     icon: Icon(Icons.add_shopping_cart),
                     onPressed: () {
                       cartController.addToCart(productId: widget.productId);
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.message),
+                    onPressed: () {
+                      if (authController.isLoggedIn.value) {
+                        Get.to(
+                          () => MessageScreen(otherUserId: widget.ownerId),
+                        );
+                      } else {
+                        Get.snackbar(
+                          'Error',
+                          'You must be logged in to send messages.',
+                          snackPosition: SnackPosition.BOTTOM,
+                        );
+                      }
                     },
                   ),
                 ],

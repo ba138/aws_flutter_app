@@ -51,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     productDescription: product.description,
                     productPrice: product.price,
                     imagePath: product.imagePath,
+                    ownerId: product.owner,
                   ),
                 );
               },
