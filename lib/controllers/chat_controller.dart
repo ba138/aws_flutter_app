@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:get/get.dart' hide GraphQLResponse;
 import 'package:uuid/uuid.dart';
 
 class ChatController extends GetxController {
-  RxList<Map<String, dynamic>> messages = <Map<String, dynamic>>[].obs;
-  RxBool isLoading = false.obs;
+  final RxList<Map<String, dynamic>> messages = <Map<String, dynamic>>[].obs;
+  final RxBool isLoading = false.obs;
+
   StreamSubscription<GraphQLResponse<String>>? _subscription;
 
   late String currentUserId;
@@ -30,13 +32,18 @@ class ChatController extends GetxController {
     return ids.join('_');
   }
 
-  /// FETCH MESSAGES
+  // ---------------------------------------------------------------------------
+  // FETCH MESSAGES
+  // ---------------------------------------------------------------------------
   Future<void> fetchMessages() async {
+    isLoading.value = true;
+
     const query = '''
     query MessagesByConversation(\$cid: String!) {
       messagesByConversation(conversationId: \$cid) {
         items {
           id
+          senderId
           receiverId
           text
           createdAt
@@ -55,95 +62,57 @@ class ChatController extends GetxController {
           )
           .response;
 
-      if (response.data == null) {
-        messages.value = [];
+      if (response.errors.isNotEmpty) {
+        safePrint("Fetch messages error: ${response.errors}");
+        messages.clear();
         return;
       }
 
-      final data = jsonDecode(response.data!);
-      final items = data['messagesByConversation']?['items'] ?? [];
-
-      // Map items and add owner info
-      messages.value = List<Map<String, dynamic>>.from(
-        items.map<Map<String, dynamic>>((item) {
-          // Determine if message is from me or other user
-          final isMe = currentUserId != item['receiverId'];
-          return {
-            'id': item['id'] ?? '',
-            'fromMe': isMe, // true if current user sent
-            'receiverId': item['receiverId'] ?? '',
-            'text': item['text'] ?? '',
-            'createdAt': item['createdAt'] ?? '',
-          };
-        }),
-      );
-
-      // Sort messages by createdAt
-      messages.sort((a, b) => a['createdAt'].compareTo(b['createdAt']));
-    } catch (e) {
-      print("Error fetching messages: $e");
-      messages.value = [];
-    }
-  }
-
-  /// SEND MESSAGE
-  Future<void> sendMessage(String text) async {
-    try {
-      final messageId = Uuid().v4();
-      final createdAt = DateTime.now().toIso8601String();
-
-      const mutation = '''
-      mutation SendMessage(\$input: CreateMessageInput!) {
-        createMessage(input: \$input) {
-          id
-          receiverId
-          text
-          createdAt
-        }
+      if (response.data == null) {
+        messages.clear();
+        return;
       }
-      ''';
 
-      final variables = {
-        "input": {
-          "id": messageId,
-          "conversationId": conversationId,
-          "receiverId": otherUserId,
-          "text": text,
-          "createdAt": createdAt,
-        },
-      };
+      final decoded = jsonDecode(response.data!);
+      final items = decoded['messagesByConversation']?['items'] as List? ?? [];
 
-      await Amplify.API
-          .mutate(
-            request: GraphQLRequest(document: mutation, variables: variables),
-          )
-          .response;
+      messages.value = items.map<Map<String, dynamic>>((item) {
+        final senderId = item['senderId'];
+        return {
+          'id': item['id'],
+          'fromMe': senderId == currentUserId,
+          'senderId': senderId,
+          'receiverId': item['receiverId'],
+          'text': item['text'],
+          'createdAt': item['createdAt'],
+        };
+      }).toList();
 
-      // Add to local list
-      messages.add({
-        'id': messageId,
-        'fromMe': true, // I sent it
-        'receiverId': otherUserId,
-        'text': text,
-        'createdAt': createdAt,
-      });
-
-      // Keep messages sorted
-      messages.sort((a, b) => a['createdAt'].compareTo(b['createdAt']));
-
-      safePrint('Message sent successfully');
+      messages.sort(
+        (a, b) => DateTime.parse(
+          a['createdAt'],
+        ).compareTo(DateTime.parse(b['createdAt'])),
+      );
     } catch (e) {
-      safePrint('Send message error: $e');
+      safePrint("Error fetching messages: $e");
+      messages.clear();
+    } finally {
+      isLoading.value = false;
     }
   }
 
-  /// REALTIME SUBSCRIPTION
-  void subscribeMessages() {
-    const subscription = '''
-    subscription OnCreateMessage {
-      onCreateMessage {
+  // ---------------------------------------------------------------------------
+  // SEND MESSAGE
+  // ---------------------------------------------------------------------------
+  Future<void> sendMessage(String text) async {
+    if (text.trim().isEmpty) return;
+
+    const mutation = '''
+    mutation SendMessage(\$input: CreateMessageInput!) {
+      createMessage(input: \$input) {
         id
         conversationId
+        senderId
         receiverId
         text
         createdAt
@@ -151,10 +120,56 @@ class ChatController extends GetxController {
     }
     ''';
 
+    final variables = {
+      "input": {
+        "id": const Uuid().v4(),
+        "conversationId": conversationId,
+        "senderId": currentUserId,
+        "receiverId": otherUserId,
+        "text": text.trim(),
+      },
+    };
+
+    try {
+      final response = await Amplify.API
+          .mutate(
+            request: GraphQLRequest(document: mutation, variables: variables),
+          )
+          .response;
+
+      if (response.errors.isNotEmpty) {
+        safePrint("Send message failed: ${response.errors}");
+        return;
+      }
+
+      // ❗ DO NOT add locally
+      // Subscription OR refetch will handle it
+    } catch (e) {
+      safePrint("Send message error: $e");
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // REALTIME SUBSCRIPTION
+  // ---------------------------------------------------------------------------
+  void subscribeMessages() {
+    const subscription = '''
+  subscription OnCreateMessage {
+    onCreateMessage {
+      id
+      conversationId
+      senderId
+      receiverId
+      text
+      createdAt
+    }
+  }
+  ''';
+
     _subscription = Amplify.API
         .subscribe(
           GraphQLRequest<String>(document: subscription),
-          onEstablished: () => safePrint('Subscription established'),
+          onEstablished: () => safePrint("Chat subscription established"),
         )
         .listen(
           (event) {
@@ -164,21 +179,29 @@ class ChatController extends GetxController {
             final msg = decoded['onCreateMessage'];
             if (msg == null) return;
 
-            if (msg['conversationId'] == conversationId) {
-              final isMe = currentUserId != msg['receiverId'];
-              messages.add({
-                'id': msg['id'],
-                'fromMe': isMe,
-                'receiverId': msg['receiverId'],
-                'text': msg['text'],
-                'createdAt': msg['createdAt'],
-              });
+            // 🔥 FILTER HERE
+            if (msg['conversationId'] != conversationId) return;
 
-              messages.sort((a, b) => a['createdAt'].compareTo(b['createdAt']));
-            }
+            // Prevent duplicates
+            if (messages.any((m) => m['id'] == msg['id'])) return;
+
+            messages.add({
+              'id': msg['id'],
+              'fromMe': msg['senderId'] == currentUserId,
+              'senderId': msg['senderId'],
+              'receiverId': msg['receiverId'],
+              'text': msg['text'],
+              'createdAt': msg['createdAt'],
+            });
+
+            messages.sort(
+              (a, b) => DateTime.parse(
+                a['createdAt'],
+              ).compareTo(DateTime.parse(b['createdAt'])),
+            );
           },
           onError: (error) {
-            safePrint('Subscription error: $error');
+            safePrint("Subscription error: $error");
           },
         );
   }

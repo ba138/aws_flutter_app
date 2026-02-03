@@ -42,11 +42,17 @@ type CartItem
 type Message
 @model
 @auth(rules: [
-  { allow: owner },                       # sender (auto)
-  { allow: private, operations: [read] }  # receiver can read
+  { allow: owner, ownerField: "senderId", operations: [create, read] },
+  { allow: private, operations: [read] }
 ]) {
   id: ID!
-  conversationId: String! @index(name: "byConversation", sortKeyFields: ["createdAt"], queryField: "messagesByConversation")
+  conversationId: String!
+    @index(
+      name: "byConversation",
+      sortKeyFields: ["createdAt"],
+      queryField: "messagesByConversation"
+    )
+  senderId: String!
   receiverId: String!
   text: String!
   createdAt: AWSDateTime!
