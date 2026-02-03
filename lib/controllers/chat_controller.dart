@@ -108,9 +108,9 @@ class ChatController extends GetxController {
     if (text.trim().isEmpty) return;
 
     final messageId = const Uuid().v4();
-    final now = DateTime.now().toIso8601String();
+    final now = DateTime.now().toUtc().toIso8601String();
 
-    // ------------------ ADD OPTIMISTIC UI ------------------
+    // ------------------ 1️⃣ Optimistic UI ------------------
     messages.add({
       'id': messageId,
       'fromMe': true,
@@ -127,6 +127,7 @@ class ChatController extends GetxController {
     );
     // -------------------------------------------------------
 
+    // ------------------ 2️⃣ Save message to backend ------------------
     const createMessageMutation = '''
   mutation CreateMessage(\$input: CreateMessageInput!) {
     createMessage(input: \$input) {
@@ -137,33 +138,16 @@ class ChatController extends GetxController {
   }
   ''';
 
-    const upsertConversationMutation = '''
-  mutation UpsertConversation(\$input: CreateConversationInput!) {
-    createConversation(input: \$input) {
-      id
-      lastMessage
-      updatedAt
-    }
-  }
-  ''';
-
     final messageInput = {
       "id": messageId,
       "conversationId": conversationId,
       "senderId": currentUserId,
       "receiverId": otherUserId,
       "text": text.trim(),
-    };
-
-    final conversationInput = {
-      "id": conversationId,
-      "userA": currentUserId,
-      "userB": otherUserId,
-      "lastMessage": text.trim(),
+      "createdAt": now,
     };
 
     try {
-      // 1️⃣ Save message to backend
       final msgResponse = await Amplify.API
           .mutate(
             request: GraphQLRequest(
@@ -175,24 +159,88 @@ class ChatController extends GetxController {
 
       if (msgResponse.errors.isNotEmpty) {
         safePrint("Message failed: ${msgResponse.errors}");
-        // Optionally remove optimistic message if backend failed
-        messages.removeWhere((m) => m['id'] == messageId);
+        messages.removeWhere(
+          (m) => m['id'] == messageId,
+        ); // rollback optimistic UI
         return;
       }
 
-      // 2️⃣ Update inbox
-      await Amplify.API
-          .mutate(
+      // ------------------ 3️⃣ Update Inbox (Conversation) ------------------
+      const getQuery = '''
+    query GetConversation(\$id: ID!) {
+      getConversation(id: \$id) {
+        id
+        lastMessage
+      }
+    }
+    ''';
+
+      final getResp = await Amplify.API
+          .query(
             request: GraphQLRequest(
-              document: upsertConversationMutation,
-              variables: {"input": conversationInput},
+              document: getQuery,
+              variables: {"id": conversationId},
             ),
           )
           .response;
+
+      final exists =
+          getResp.data != null &&
+          jsonDecode(getResp.data!)['getConversation'] != null;
+
+      if (exists) {
+        // Conversation exists → update it
+        const updateMutation = '''
+      mutation UpdateConversation(\$input: UpdateConversationInput!) {
+        updateConversation(input: \$input) {
+          id
+          lastMessage
+          updatedAt
+        }
+      }
+      ''';
+
+        final input = {"id": conversationId, "lastMessage": text.trim()};
+
+        await Amplify.API
+            .mutate(
+              request: GraphQLRequest(
+                document: updateMutation,
+                variables: {"input": input},
+              ),
+            )
+            .response;
+      } else {
+        // Conversation does not exist → create it
+        const createMutation = '''
+      mutation CreateConversation(\$input: CreateConversationInput!) {
+        createConversation(input: \$input) {
+          id
+          lastMessage
+          updatedAt
+        }
+      }
+      ''';
+
+        final input = {
+          "id": conversationId,
+          "userA": currentUserId,
+          "userB": otherUserId,
+          "lastMessage": text.trim(),
+        };
+
+        await Amplify.API
+            .mutate(
+              request: GraphQLRequest(
+                document: createMutation,
+                variables: {"input": input},
+              ),
+            )
+            .response;
+      }
     } catch (e) {
       safePrint("Send message error: $e");
-      // Optionally remove optimistic message if error
-      messages.removeWhere((m) => m['id'] == messageId);
+      messages.removeWhere((m) => m['id'] == messageId); // rollback if error
     }
   }
 
