@@ -42,8 +42,16 @@ type CartItem
 type Message
 @model
 @auth(rules: [
-  { allow: owner, ownerField: "senderId", operations: [create, read] },
-  { allow: private, operations: [read] }
+  {
+    allow: owner
+    ownerField: "senderId"
+    operations: [create, read]
+  },
+  {
+    allow: owner
+    ownerField: "receiverId"
+    operations: [read]
+  }
 ]) {
   id: ID!
   conversationId: String!
@@ -57,6 +65,7 @@ type Message
   text: String!
   createdAt: AWSDateTime!
 }
+
 
 
 
