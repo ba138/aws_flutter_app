@@ -107,43 +107,68 @@ class ChatController extends GetxController {
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    const mutation = '''
-    mutation SendMessage(\$input: CreateMessageInput!) {
-      createMessage(input: \$input) {
-        id
-        conversationId
-        senderId
-        receiverId
-        text
-        createdAt
-      }
-    }
-    ''';
+    final messageId = const Uuid().v4();
 
-    final variables = {
-      "input": {
-        "id": const Uuid().v4(),
-        "conversationId": conversationId,
-        "senderId": currentUserId,
-        "receiverId": otherUserId,
-        "text": text.trim(),
-      },
+    const createMessageMutation = '''
+  mutation CreateMessage(\$input: CreateMessageInput!) {
+    createMessage(input: \$input) {
+      id
+      text
+      createdAt
+    }
+  }
+  ''';
+
+    const upsertConversationMutation = '''
+  mutation UpsertConversation(\$input: CreateConversationInput!) {
+    createConversation(input: \$input) {
+      id
+      lastMessage
+      updatedAt
+    }
+  }
+  ''';
+
+    final messageInput = {
+      "id": messageId,
+      "conversationId": conversationId,
+      "senderId": currentUserId,
+      "receiverId": otherUserId,
+      "text": text.trim(),
+    };
+
+    final conversationInput = {
+      "id": conversationId,
+      "userA": currentUserId,
+      "userB": otherUserId,
+      "lastMessage": text.trim(),
     };
 
     try {
-      final response = await Amplify.API
+      // 1️⃣ Save message
+      final msgResponse = await Amplify.API
           .mutate(
-            request: GraphQLRequest(document: mutation, variables: variables),
+            request: GraphQLRequest(
+              document: createMessageMutation,
+              variables: {"input": messageInput},
+            ),
           )
           .response;
 
-      if (response.errors.isNotEmpty) {
-        safePrint("Send message failed: ${response.errors}");
+      if (msgResponse.errors.isNotEmpty) {
+        safePrint("Message failed: ${msgResponse.errors}");
         return;
       }
 
-      // ❗ DO NOT add locally
-      // Subscription OR refetch will handle it
+      // 2️⃣ Create or update conversation (inbox)
+      await Amplify.API
+          .mutate(
+            request: GraphQLRequest(
+              document: upsertConversationMutation,
+              variables: {"input": conversationInput},
+            ),
+          )
+          .response;
     } catch (e) {
       safePrint("Send message error: $e");
     }
