@@ -60,7 +60,6 @@ type Message
 
 
 
-### 📬 CONVERSATION (INBOX)
 type Conversation
 @model
 @auth(rules: [
@@ -71,5 +70,5 @@ type Conversation
   userA: String!
   userB: String!
   lastMessage: String
-  updatedAt: AWSDateTime
 }
+
