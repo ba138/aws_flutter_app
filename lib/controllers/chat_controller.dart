@@ -108,6 +108,24 @@ class ChatController extends GetxController {
     if (text.trim().isEmpty) return;
 
     final messageId = const Uuid().v4();
+    final now = DateTime.now().toIso8601String();
+
+    // ------------------ ADD OPTIMISTIC UI ------------------
+    messages.add({
+      'id': messageId,
+      'fromMe': true,
+      'senderId': currentUserId,
+      'receiverId': otherUserId,
+      'text': text.trim(),
+      'createdAt': now,
+    });
+
+    messages.sort(
+      (a, b) => DateTime.parse(
+        a['createdAt'],
+      ).compareTo(DateTime.parse(b['createdAt'])),
+    );
+    // -------------------------------------------------------
 
     const createMessageMutation = '''
   mutation CreateMessage(\$input: CreateMessageInput!) {
@@ -145,7 +163,7 @@ class ChatController extends GetxController {
     };
 
     try {
-      // 1️⃣ Save message
+      // 1️⃣ Save message to backend
       final msgResponse = await Amplify.API
           .mutate(
             request: GraphQLRequest(
@@ -157,10 +175,12 @@ class ChatController extends GetxController {
 
       if (msgResponse.errors.isNotEmpty) {
         safePrint("Message failed: ${msgResponse.errors}");
+        // Optionally remove optimistic message if backend failed
+        messages.removeWhere((m) => m['id'] == messageId);
         return;
       }
 
-      // 2️⃣ Create or update conversation (inbox)
+      // 2️⃣ Update inbox
       await Amplify.API
           .mutate(
             request: GraphQLRequest(
@@ -171,6 +191,8 @@ class ChatController extends GetxController {
           .response;
     } catch (e) {
       safePrint("Send message error: $e");
+      // Optionally remove optimistic message if error
+      messages.removeWhere((m) => m['id'] == messageId);
     }
   }
 
