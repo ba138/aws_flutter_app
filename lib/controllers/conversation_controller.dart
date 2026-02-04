@@ -127,10 +127,12 @@ class ConversationController extends GetxController {
 
           if (!_belongsToMe(convo)) return;
 
-          if (conversations.any((c) => c['id'] == convo['id'])) return;
-
-          conversations.add(_mapConversation(convo));
-          _sortInbox();
+          if (!conversations.any((c) => c['id'] == convo['id'])) {
+            conversations.add(_mapConversation(convo));
+            conversations.refresh(); // 🔥 refresh for GetX
+            _sortInbox();
+            safePrint("🔥 New conversation added: ${convo['id']}");
+          }
         });
 
     // ✏️ Updated conversation (new message)
@@ -152,7 +154,9 @@ class ConversationController extends GetxController {
             conversations.add(_mapConversation(convo));
           }
 
+          conversations.refresh(); // 🔥 refresh UI
           _sortInbox();
+          safePrint("🔥 Inbox updated for conversation: ${convo['id']}");
         });
   }
 
