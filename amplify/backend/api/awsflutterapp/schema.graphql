@@ -73,11 +73,13 @@ type Conversation
 @model
 @auth(rules: [
   { allow: owner, ownerField: "userA" },
-  { allow: owner, ownerField: "userB" }
+  { allow: owner, ownerField: "userB" },
+  { allow: private, operations: [read] }
 ]) {
   id: ID!
   userA: String!
   userB: String!
   lastMessage: String
+  updatedAt: AWSDateTime
 }
 
