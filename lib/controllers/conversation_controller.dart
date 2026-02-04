@@ -28,8 +28,10 @@ class ConversationController extends GetxController {
     subscribeConversations();
   }
 
+  // ------------------------- LOAD EXISTING CONVERSATIONS -------------------------
   Future<void> loadConversations() async {
     isLoading.value = true;
+
     const query = '''
     query ListConversations {
       listConversations {
@@ -61,17 +63,7 @@ class ConversationController extends GetxController {
           .where(
             (c) => c['userA'] == currentUserId || c['userB'] == currentUserId,
           )
-          .map<Map<String, dynamic>>((c) {
-            final otherUser = c['userA'] == currentUserId
-                ? c['userB']
-                : c['userA'];
-            return {
-              'id': c['id'],
-              'otherUserId': otherUser,
-              'lastMessage': c['lastMessage'] ?? '',
-              'updatedAt': c['updatedAt'],
-            };
-          })
+          .map<Map<String, dynamic>>((c) => _mapConversation(c))
           .toList();
 
       _sortInbox();
@@ -83,6 +75,7 @@ class ConversationController extends GetxController {
     }
   }
 
+  // ------------------------- REALTIME SUBSCRIPTIONS -------------------------
   void subscribeConversations() {
     const onCreate = '''
     subscription OnCreateConversation {
@@ -108,15 +101,14 @@ class ConversationController extends GetxController {
     }
     ''';
 
+    // New conversations
     _createSub = Amplify.API
         .subscribe(GraphQLRequest<String>(document: onCreate))
         .listen((event) {
           if (event.data == null) return;
 
           final convo = jsonDecode(event.data!)['onCreateConversation'];
-          if (convo == null) return;
-
-          if (!_belongsToMe(convo)) return;
+          if (convo == null || !_belongsToMe(convo)) return;
 
           if (!conversations.any((c) => c['id'] == convo['id'])) {
             conversations.add(_mapConversation(convo));
@@ -124,15 +116,14 @@ class ConversationController extends GetxController {
           }
         });
 
+    // Updated conversations
     _updateSub = Amplify.API
         .subscribe(GraphQLRequest<String>(document: onUpdate))
         .listen((event) {
           if (event.data == null) return;
 
           final convo = jsonDecode(event.data!)['onUpdateConversation'];
-          if (convo == null) return;
-
-          if (!_belongsToMe(convo)) return;
+          if (convo == null || !_belongsToMe(convo)) return;
 
           final index = conversations.indexWhere((c) => c['id'] == convo['id']);
           if (index != -1) {
@@ -145,6 +136,31 @@ class ConversationController extends GetxController {
         });
   }
 
+  // ------------------------- OPTIMISTIC UPDATE FOR CURRENT USER -------------------------
+  void updateLocalConversation(
+    String conversationId,
+    String otherUserId,
+    String lastMessage,
+  ) {
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    final index = conversations.indexWhere((c) => c['id'] == conversationId);
+    if (index != -1) {
+      conversations[index]['lastMessage'] = lastMessage;
+      conversations[index]['updatedAt'] = now;
+    } else {
+      conversations.add({
+        'id': conversationId,
+        'otherUserId': otherUserId,
+        'lastMessage': lastMessage,
+        'updatedAt': now,
+      });
+    }
+
+    _sortInbox();
+  }
+
+  // ------------------------- HELPERS -------------------------
   bool _belongsToMe(Map<String, dynamic> c) {
     return c['userA'] == currentUserId || c['userB'] == currentUserId;
   }
@@ -155,7 +171,7 @@ class ConversationController extends GetxController {
       'id': c['id'],
       'otherUserId': otherUser,
       'lastMessage': c['lastMessage'] ?? '',
-      'updatedAt': c['updatedAt'],
+      'updatedAt': c['updatedAt'] ?? DateTime.now().toUtc().toIso8601String(),
     };
   }
 

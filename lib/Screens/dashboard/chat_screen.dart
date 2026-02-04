@@ -3,9 +3,14 @@ import 'package:aws_flutter_app/controllers/conversation_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class ChatScreen extends StatelessWidget {
+class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(ConversationController());
