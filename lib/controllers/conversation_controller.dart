@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart' hide GraphQLResponse;
 
 class ConversationController extends GetxController {
+  static ConversationController get instance => Get.find();
+
   final RxList<Map<String, dynamic>> conversations =
       <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
@@ -23,6 +26,8 @@ class ConversationController extends GetxController {
   Future<void> initInbox() async {
     final user = await Amplify.Auth.getCurrentUser();
     currentUserId = user.userId;
+
+    debugPrint("🟢 Current userId: $currentUserId");
 
     await loadConversations();
     subscribeConversations();
@@ -67,6 +72,7 @@ class ConversationController extends GetxController {
           .toList();
 
       _sortInbox();
+      debugPrint("💾 Loaded ${conversations.length} conversations");
     } catch (e) {
       safePrint("Inbox load error: $e");
       conversations.clear();
@@ -101,10 +107,11 @@ class ConversationController extends GetxController {
     }
     ''';
 
-    // New conversations
+    // 🆕 New conversations
     _createSub = Amplify.API
         .subscribe(GraphQLRequest<String>(document: onCreate))
         .listen((event) {
+          debugPrint("🔔 onCreate event: ${event.data}");
           if (event.data == null) return;
 
           final convo = jsonDecode(event.data!)['onCreateConversation'];
@@ -113,13 +120,15 @@ class ConversationController extends GetxController {
           if (!conversations.any((c) => c['id'] == convo['id'])) {
             conversations.add(_mapConversation(convo));
             _sortInbox();
+            debugPrint("📨 New conversation added: ${convo['lastMessage']}");
           }
         });
 
-    // Updated conversations
+    // ✏️ Updated conversations
     _updateSub = Amplify.API
         .subscribe(GraphQLRequest<String>(document: onUpdate))
         .listen((event) {
+          debugPrint("🔔 onUpdate event: ${event.data}");
           if (event.data == null) return;
 
           final convo = jsonDecode(event.data!)['onUpdateConversation'];
@@ -128,15 +137,19 @@ class ConversationController extends GetxController {
           final index = conversations.indexWhere((c) => c['id'] == convo['id']);
           if (index != -1) {
             conversations[index] = _mapConversation(convo);
+            debugPrint("📨 Conversation updated: ${convo['lastMessage']}");
           } else {
             conversations.add(_mapConversation(convo));
+            debugPrint(
+              "📨 Conversation added on update: ${convo['lastMessage']}",
+            );
           }
 
           _sortInbox();
         });
   }
 
-  // ------------------------- OPTIMISTIC UPDATE FOR CURRENT USER -------------------------
+  // ------------------------- OPTIMISTIC LOCAL UPDATE -------------------------
   void updateLocalConversation(
     String conversationId,
     String otherUserId,
@@ -158,6 +171,7 @@ class ConversationController extends GetxController {
     }
 
     _sortInbox();
+    debugPrint("⚡ Local conversation updated: $lastMessage");
   }
 
   // ------------------------- HELPERS -------------------------

@@ -11,10 +11,22 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  late final ConversationController controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ Use existing controller or create a permanent one
+    if (Get.isRegistered<ConversationController>()) {
+      controller = Get.find<ConversationController>();
+    } else {
+      controller = Get.put(ConversationController(), permanent: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(ConversationController());
-
     return Scaffold(
       appBar: AppBar(title: const Text("Chats")),
       body: Obx(() {
