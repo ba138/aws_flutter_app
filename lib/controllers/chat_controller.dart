@@ -108,7 +108,6 @@ class ChatController extends GetxController {
     if (text.trim().isEmpty) return;
 
     final messageId = const Uuid().v4();
-    final now = DateTime.now().toUtc().toIso8601String();
 
     // ------------------ 1️⃣ Optimistic UI ------------------
     messages.add({
@@ -117,7 +116,7 @@ class ChatController extends GetxController {
       'senderId': currentUserId,
       'receiverId': otherUserId,
       'text': text.trim(),
-      'createdAt': now,
+      'createdAt': DateTime.now().toIso8601String(),
     });
 
     messages.sort(
@@ -125,52 +124,39 @@ class ChatController extends GetxController {
         a['createdAt'],
       ).compareTo(DateTime.parse(b['createdAt'])),
     );
-    // -------------------------------------------------------
-
-    // ------------------ 2️⃣ Save message to backend ------------------
-    const createMessageMutation = '''
-  mutation CreateMessage(\$input: CreateMessageInput!) {
-    createMessage(input: \$input) {
-      id
-      text
-      createdAt
-    }
-  }
-  ''';
-
-    final messageInput = {
-      "id": messageId,
-      "conversationId": conversationId,
-      "senderId": currentUserId,
-      "receiverId": otherUserId,
-      "text": text.trim(),
-      "createdAt": now,
-    };
 
     try {
-      final msgResponse = await Amplify.API
+      // ------------------ 2️⃣ Create Message ------------------
+      const createMessageMutation = '''
+    mutation CreateMessage(\$input: CreateMessageInput!) {
+      createMessage(input: \$input) {
+        id
+      }
+    }
+    ''';
+
+      await Amplify.API
           .mutate(
             request: GraphQLRequest(
               document: createMessageMutation,
-              variables: {"input": messageInput},
+              variables: {
+                "input": {
+                  "id": messageId,
+                  "conversationId": conversationId,
+                  "senderId": currentUserId,
+                  "receiverId": otherUserId,
+                  "text": text.trim(),
+                },
+              },
             ),
           )
           .response;
 
-      if (msgResponse.errors.isNotEmpty) {
-        safePrint("Message failed: ${msgResponse.errors}");
-        messages.removeWhere(
-          (m) => m['id'] == messageId,
-        ); // rollback optimistic UI
-        return;
-      }
-
-      // ------------------ 3️⃣ Update Inbox (Conversation) ------------------
+      // ------------------ 3️⃣ CHECK CONVERSATION ------------------
       const getQuery = '''
     query GetConversation(\$id: ID!) {
       getConversation(id: \$id) {
         id
-        lastMessage
       }
     }
     ''';
@@ -189,7 +175,7 @@ class ChatController extends GetxController {
           jsonDecode(getResp.data!)['getConversation'] != null;
 
       if (exists) {
-        // Conversation exists → update it
+        // ------------------ 4️⃣ UPDATE CONVERSATION ------------------
         const updateMutation = '''
       mutation UpdateConversation(\$input: UpdateConversationInput!) {
         updateConversation(input: \$input) {
@@ -200,47 +186,45 @@ class ChatController extends GetxController {
       }
       ''';
 
-        final input = {"id": conversationId, "lastMessage": text.trim()};
-
         await Amplify.API
             .mutate(
               request: GraphQLRequest(
                 document: updateMutation,
-                variables: {"input": input},
+                variables: {
+                  "input": {"id": conversationId, "lastMessage": text.trim()},
+                },
               ),
             )
             .response;
       } else {
-        // Conversation does not exist → create it
-        const createMutation = '''
+        // ------------------ 5️⃣ CREATE CONVERSATION ------------------
+        const createConversationMutation = '''
       mutation CreateConversation(\$input: CreateConversationInput!) {
         createConversation(input: \$input) {
           id
-          lastMessage
-          updatedAt
         }
       }
       ''';
 
-        final input = {
-          "id": conversationId,
-          "userA": currentUserId,
-          "userB": otherUserId,
-          "lastMessage": text.trim(),
-        };
-
         await Amplify.API
             .mutate(
               request: GraphQLRequest(
-                document: createMutation,
-                variables: {"input": input},
+                document: createConversationMutation,
+                variables: {
+                  "input": {
+                    "id": conversationId,
+                    "userA": currentUserId,
+                    "userB": otherUserId,
+                    "lastMessage": text.trim(),
+                  },
+                },
               ),
             )
             .response;
       }
     } catch (e) {
       safePrint("Send message error: $e");
-      messages.removeWhere((m) => m['id'] == messageId); // rollback if error
+      messages.removeWhere((m) => m['id'] == messageId);
     }
   }
 
