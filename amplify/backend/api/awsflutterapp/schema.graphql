@@ -70,15 +70,16 @@ type Message
 
 
 type Conversation @model
-  @auth(rules: [
-    { allow: owner, ownerField: "userA" },
-    { allow: owner, ownerField: "userB" },
-    { allow: private, provider: iam } # optional: allows both users to subscribe
-  ]) {
+@auth(rules: [
+  { allow: owner, ownerField: "userA" },
+  { allow: owner, ownerField: "userB" },
+  { allow: private, operations: [read] }
+]) {
   id: ID!
   userA: String!
   userB: String!
   lastMessage: String
   updatedAt: AWSDateTime
 }
+
 
