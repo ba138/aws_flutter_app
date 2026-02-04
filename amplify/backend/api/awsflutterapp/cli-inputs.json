@@ -8,6 +8,10 @@
       "cognitoUserPoolId": "authawsflutterapp9bed106b"
     },
     "conflictResolution": {},
-    "additionalAuthTypes": []
+    "additionalAuthTypes": [
+      {
+        "mode": "AWS_IAM"
+      }
+    ]
   }
 }

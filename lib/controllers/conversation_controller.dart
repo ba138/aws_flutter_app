@@ -28,12 +28,8 @@ class ConversationController extends GetxController {
     subscribeConversations();
   }
 
-  // ---------------------------------------------------------------------------
-  // INITIAL LOAD
-  // ---------------------------------------------------------------------------
   Future<void> loadConversations() async {
     isLoading.value = true;
-
     const query = '''
     query ListConversations {
       listConversations {
@@ -69,7 +65,6 @@ class ConversationController extends GetxController {
             final otherUser = c['userA'] == currentUserId
                 ? c['userB']
                 : c['userA'];
-
             return {
               'id': c['id'],
               'otherUserId': otherUser,
@@ -88,9 +83,6 @@ class ConversationController extends GetxController {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // REALTIME SUBSCRIPTIONS
-  // ---------------------------------------------------------------------------
   void subscribeConversations() {
     const onCreate = '''
     subscription OnCreateConversation {
@@ -116,7 +108,6 @@ class ConversationController extends GetxController {
     }
     ''';
 
-    // 🆕 New conversation
     _createSub = Amplify.API
         .subscribe(GraphQLRequest<String>(document: onCreate))
         .listen((event) {
@@ -129,13 +120,10 @@ class ConversationController extends GetxController {
 
           if (!conversations.any((c) => c['id'] == convo['id'])) {
             conversations.add(_mapConversation(convo));
-            conversations.refresh(); // 🔥 refresh for GetX
             _sortInbox();
-            safePrint("🔥 New conversation added: ${convo['id']}");
           }
         });
 
-    // ✏️ Updated conversation (new message)
     _updateSub = Amplify.API
         .subscribe(GraphQLRequest<String>(document: onUpdate))
         .listen((event) {
@@ -147,29 +135,22 @@ class ConversationController extends GetxController {
           if (!_belongsToMe(convo)) return;
 
           final index = conversations.indexWhere((c) => c['id'] == convo['id']);
-
           if (index != -1) {
             conversations[index] = _mapConversation(convo);
           } else {
             conversations.add(_mapConversation(convo));
           }
 
-          conversations.refresh(); // 🔥 refresh UI
           _sortInbox();
-          safePrint("🔥 Inbox updated for conversation: ${convo['id']}");
         });
   }
 
-  // ---------------------------------------------------------------------------
-  // HELPERS
-  // ---------------------------------------------------------------------------
   bool _belongsToMe(Map<String, dynamic> c) {
     return c['userA'] == currentUserId || c['userB'] == currentUserId;
   }
 
   Map<String, dynamic> _mapConversation(Map<String, dynamic> c) {
     final otherUser = c['userA'] == currentUserId ? c['userB'] : c['userA'];
-
     return {
       'id': c['id'],
       'otherUserId': otherUser,
