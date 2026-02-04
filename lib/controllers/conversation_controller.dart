@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart' hide GraphQLResponse;
@@ -107,13 +106,11 @@ class ConversationController extends GetxController {
     }
     ''';
 
-    // 🆕 New conversations
+    // New conversations
     _createSub = Amplify.API
         .subscribe(GraphQLRequest<String>(document: onCreate))
         .listen((event) {
-          debugPrint("🔔 onCreate event: ${event.data}");
           if (event.data == null) return;
-
           final convo = jsonDecode(event.data!)['onCreateConversation'];
           if (convo == null || !_belongsToMe(convo)) return;
 
@@ -124,13 +121,11 @@ class ConversationController extends GetxController {
           }
         });
 
-    // ✏️ Updated conversations
+    // Updated conversations
     _updateSub = Amplify.API
         .subscribe(GraphQLRequest<String>(document: onUpdate))
         .listen((event) {
-          debugPrint("🔔 onUpdate event: ${event.data}");
           if (event.data == null) return;
-
           final convo = jsonDecode(event.data!)['onUpdateConversation'];
           if (convo == null || !_belongsToMe(convo)) return;
 
