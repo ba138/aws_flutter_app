@@ -1,3 +1,4 @@
+import 'package:aws_flutter_app/Screens/dashboard/chat_screen.dart';
 import 'package:aws_flutter_app/controllers/chat_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
